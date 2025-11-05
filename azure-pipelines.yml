@@ -57,11 +57,11 @@ stages:
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Export Terraform Outputs'
           
-          - task: PublishPipelineArtifact@0
+          - task: PublishPipelineArtifact@1
             inputs:
-              targetPath: '$(System.DefaultWorkingDirectory)/ansible/terraform_outputs.json'
-              artifactName: 'terraform_outputs.json'
-            displayName: 'Publish Terraform Outputs'
+              targetPath: '$(System.DefaultWorkingDirectory)/ansible'
+              artifact: 'ansible-config'
+            displayName: 'Publish Ansible Configuration'
 
   - stage: ansibleAction
     dependsOn: terraformAction
@@ -69,15 +69,28 @@ stages:
     jobs:
       - job: ansible
         steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              artifactName: 'ansible-config'
+              downloadPath: '$(System.DefaultWorkingDirectory)'
+            displayName: 'Download Ansible Configuration'
+
           - script: |
-              # Verify terraform outputs exist
               ls -la
+              echo "=== Inventory file ==="
+              cat inventory.ini
+              echo "=== Group vars ==="
+              ls -la group_vars/
+              echo "=== Terraform outputs ==="
+              cat terraform_outputs.json
             workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
-            displayName: 'Verify Terraform Outputs'
+            displayName: 'Verify Ansible Files'
           - script: |
               ansible-playbook -i inventory.ini bookreview.yaml -vvv
             workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Run Ansible Playbook'
+
 
   - stage: destroy
     dependsOn: [terraformAction, ansibleAction]
