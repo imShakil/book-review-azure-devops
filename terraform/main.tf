@@ -65,7 +65,7 @@ ansible_ssh_private_key_file='~/.ssh/id_rsa'
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOT
 
-  filename = "../ansible/inventory.ini"
+  filename = "${path.root}/../ansible/inventory.ini"
 
   depends_on = [
     module.instance
@@ -82,6 +82,6 @@ rds_admin: "${var.rds_admin}"
 rds_admin_password: "${var.rds_admin_password}"
 EOT
 
-  filename = "../ansible/group_vars/rds_info.yml"
+  filename = "${path.root}/../ansible/group_vars/rds_info.yml"
   depends_on = [module.rds]
 }
