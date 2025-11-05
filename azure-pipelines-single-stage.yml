@@ -1,0 +1,85 @@
+trigger: 
+  - main
+pool: 
+  name: 'aws-ubuntu'
+
+variables:
+  - group: aws-credentials
+  - group: terraform-vars
+
+stages:
+  - stage: deployAndConfigure
+    jobs:
+      - job: deploy
+        steps:
+          - script: |
+              aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
+              aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
+              aws configure set region $(AWS_DEFAULT_REGION)
+            displayName: 'Configure AWS CLI'
+          
+          - script: |
+              rm -rf ~/.ssh
+              mkdir -p ~/.ssh
+              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+              chmod 600 ~/.ssh/id_rsa
+              chmod 644 ~/.ssh/id_rsa.pub
+              echo "StrictHostKeyChecking no" > ~/.ssh/config
+              cp ~/.ssh/id_rsa.pub terraform/
+            displayName: "Generate SSH Keys"
+
+          - script: |
+              cat > terraform.tfvars << EOF
+              prefix             = "$(TF_PREFIX)"
+              rds_name           = "$(TF_RDS_NAME)"
+              rds_admin          = "$(TF_RDS_ADMIN)"
+              rds_admin_password = "$(TF_RDS_PASSWORD)"
+              EOF
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Create terraform.tfvars'
+            
+          - script: |
+              terraform init
+              terraform plan -out=tfplan
+              terraform apply -auto-approve tfplan
+              terraform output -json > ../ansible/terraform_outputs.json
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Deploy'
+            
+          - script: |
+              ls -la
+              ansible-playbook -i inventory.ini bookreview.yaml -vvv || ANSIBLE_FAILED=true
+              if [ "$ANSIBLE_FAILED" = true ]; then
+                echo "Ansible failed, destroying infrastructure..."
+                cd ../terraform
+                terraform destroy -auto-approve
+                exit 1
+              fi
+            workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
+            displayName: 'Run Ansible and Conditional Destroy'
+
+  - stage: manualDestroy
+    dependsOn: deployAndConfigure
+    condition: succeeded()
+    jobs:
+      - deployment: approveDestroy
+        environment: 'production-destroy'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    terraform init
+                    terraform destroy -auto-approve
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+                  displayName: 'Manual Terraform Destroy'
+
+  - stage: cleanup
+    dependsOn: [deployAndConfigure, manualDestroy]
+    condition: always()
+    jobs:
+      - job: cleanup
+        steps:
+          - script: |
+              rm -f ~/.aws/credentials ~/.aws/config ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
+            displayName: 'Cleanup Agent'

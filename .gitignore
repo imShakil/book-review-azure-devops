@@ -51,7 +51,7 @@ crash.log
 *.retry
 .vault_pass
 host_vars/
-group_vars/
+#group_vars/
 
 # Azure DevOps
 .vscode/

@@ -5,17 +5,41 @@ pool:
 
 variables:
   - group: aws-credentials
+  - group: terraform-vars
 
 stages:
   - stage: terraformAction
     jobs:
       - job: terraform
+        workspace:
+          clean: all
         steps:
           - script: |
               aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
               aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
               aws configure set region $(AWS_DEFAULT_REGION)
             displayName: 'Configure AWS CLI'
+          
+          - script: |
+              rm -rf ~/.ssh
+              mkdir -p ~/.ssh
+              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+              chmod 600 ~/.ssh/id_rsa
+              chmod 644 ~/.ssh/id_rsa.pub
+              echo "StrictHostKeyChecking no" > ~/.ssh/config
+              # Copy public key to terraform directory for EC2 key pair
+              cp ~/.ssh/id_rsa.pub terraform/
+            displayName: "Generate SSH Keys"
+
+          - script: |
+              cat > terraform.tfvars << EOF
+              prefix             = "$(TF_PREFIX)"
+              rds_name           = "$(TF_RDS_NAME)"
+              rds_admin          = "$(TF_RDS_ADMIN)"
+              rds_admin_password = "$(TF_RDS_PASSWORD)"
+              EOF
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Create terraform.tfvars'
           - script: |
               terraform init
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
@@ -32,15 +56,39 @@ stages:
               terraform output -json > ../ansible/terraform_outputs.json
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Export Terraform Outputs'
+          
+          - task: PublishPipelineArtifact@0
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/ansible/terraform_outputs.json'
+              artifactName: 'terraform_outputs.json'
+            displayName: 'Publish Terraform Outputs'
+
   - stage: ansibleAction
     dependsOn: terraformAction
+    condition: succeeded()
     jobs:
       - job: ansible
         steps:
           - script: |
-              ansible-playbook -i ansible/inventory ansible/playbook.yml -vvv
-            workingDirectory: '$(System.DefaultWorkingDirectory)'
+              # Verify terraform outputs exist
+              ls -la
+            workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
+            displayName: 'Verify Terraform Outputs'
+          - script: |
+              ansible-playbook -i inventory.ini bookreview.yaml -vvv
+            workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Run Ansible Playbook'
+
+  - stage: destroy
+    dependsOn: [terraformAction, ansibleAction]
+    condition: and(succeeded('terraformAction'), failed('ansibleAction'))
+    jobs:
+      - job: destroy
+        steps:
+          - script: |
+              terraform destroy -auto-approve
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Destroy'
   - stage: cleanup
     dependsOn: [terraformAction, ansibleAction]
     condition: always()
@@ -49,4 +97,21 @@ stages:
         steps:
           - script: |
               rm -f ~/.aws/credentials ~/.aws/config
-            displayName: 'Cleanup AWS Credentials'
+              rm -rf ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
+              rm -rf $(System.DefaultWorkingDirectory)/*
+            displayName: 'Cleanup Agent'
+
+  - stage: manualDestroy
+    dependsOn: [terraformAction, ansibleAction]
+    condition: and(succeeded('terraformAction'), succeeded('ansibleAction'))
+    jobs:
+      - deployment: approveDestroy
+        environment: 'production-destroy'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    terraform destroy -auto-approve
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+                  displayName: 'Manual Terraform Destroy'
