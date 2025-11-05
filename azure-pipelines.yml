@@ -30,9 +30,7 @@ stages:
               rm -rf ~/.ssh/
               mkdir -p ~/.ssh
               cp $(download_ssh_key.secureFilePath) ~/.ssh/id_rsa.pub
-
-              echo "Listing contents of terraform/modules/compute/"
-              ls -al terraform/modules/compute/
+              ls -la ~/.ssh/
             displayName: 'Extract SSH Public Key for Terraform'
           - script: |
               cat > terraform.tfvars << EOF
