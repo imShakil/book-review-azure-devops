@@ -67,8 +67,8 @@ stages:
             displayName: 'Publish Ansible Configuration'
           - task: PublishPipelineArtifact@1
             inputs:
-              targetPath: '$(System.DefaultWorkingDirectory)/terraform'
-              artifact: 'terrafrom.tfvars'
+              targetPath: '$(System.DefaultWorkingDirectory)/terraform/terraform.tfvars'
+              artifact: 'terraform.tfvars'
             displayName: 'Publish Terraform vars'
 
   - stage: ansibleAction
@@ -126,11 +126,12 @@ stages:
 
           - task: DownloadPipelineArtifact@2
             inputs:
-              artifactName: 'terrafrom.tfvars'
+              artifactName: 'terraform.tfvars'
               targetPath: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Download Terraform vars'
 
           - script: |
+              ls -la
               terraform init -upgrade
               terraform destroy -auto-approve
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
@@ -154,14 +155,13 @@ stages:
                 
                 - task: DownloadPipelineArtifact@2
                   inputs:
-                    artifactName: 'terrafrom.tfvars'
+                    artifactName: 'terraform.tfvars'
                     targetPath: '$(System.DefaultWorkingDirectory)/terraform'
                   displayName: 'Download Terraform vars'
 
                 - script: |
                     ls -la
                     terraform init -upgrade
-                    chmod -R +x .terraform/providers
                     terraform destroy -auto-approve
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
                   displayName: 'Manual Destroy'
