@@ -114,19 +114,19 @@ stages:
       - job: destroy
         steps:
           - script: |
-              terraforn init
+              terraform init
               terraform destroy -auto-approve
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Destroy'
   - stage: cleanup
     dependsOn: [terraformAction, ansibleAction, destroy]
-    condition: always()
+    condition: and(always(), not(and(succeeded('terraformAction'), succeeded('ansibleAction'))))
     jobs:
       - job: cleanup
         steps:
           - script: |
               rm -f ~/.aws/credentials ~/.aws/config
-              rm -rf ~/.ssh/id_rsa ~/.ssh/id_rsa.pub
+              rm -rf ~/.ssh
               rm -rf $(System.DefaultWorkingDirectory)/*
             displayName: 'Cleanup Agent'
 
@@ -150,3 +150,8 @@ stages:
                     terraform destroy -auto-approve
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
                   displayName: 'Manual Terraform Destroy'
+                - script: |
+                    rm -f ~/.aws/credentials ~/.aws/config
+                    rm -rf ~/.ssh/
+                    rm -rf $(System.DefaultWorkingDirectory)/*
+                  displayName: 'Cleanup Agent'
