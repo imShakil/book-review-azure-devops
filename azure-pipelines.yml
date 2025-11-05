@@ -131,10 +131,7 @@ stages:
             displayName: 'Download Terraform vars'
 
           - script: |
-              terraform init
-            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-            displayName: 'Terraform Destroy'
-          - script: |
+              terraform init -upgrade
               terraform destroy -auto-approve
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Destroy'
@@ -162,10 +159,7 @@ stages:
                   displayName: 'Download Terraform vars'
 
                 - script: |
-                    terraform init 
-                  workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-                  displayName: 'Manual Init'
-                - script: |
+                    terraform init -upgrade
                     terraform destroy -auto-approve
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
                   displayName: 'Manual Destroy'
