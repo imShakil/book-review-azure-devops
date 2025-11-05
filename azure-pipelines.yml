@@ -114,6 +114,7 @@ stages:
       - job: destroy
         steps:
           - script: |
+              terraforn init
               terraform destroy -auto-approve
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Destroy'
