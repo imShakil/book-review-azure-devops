@@ -53,13 +53,11 @@ stages:
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Apply'
           - script: |
-              terraform output -json > terraform_output.json
-              cat terraform_output.json
               ls -la
-              cat ansible/inventory.ini
-              ls -la ansible/group_vars/
-              cat ansible/group_vars/rds_info.yml
-            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+              cat inventory.ini
+              ls -la group_vars/
+              cat group_vars/rds_info.yml
+            workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Terraform Output'
           - task: PublishPipelineArtifact@1
             inputs:
