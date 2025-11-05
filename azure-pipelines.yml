@@ -1,0 +1,52 @@
+trigger: 
+  - main
+pool: 
+  name: 'aws-ubuntu'
+
+variables:
+  - group: aws-credentials
+
+stages:
+  - stage: terraformAction
+    jobs:
+      - job: terraform
+        steps:
+          - script: |
+              aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
+              aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
+              aws configure set region $(AWS_DEFAULT_REGION)
+            displayName: 'Configure AWS CLI'
+          - script: |
+              terraform init
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Init'
+          - script: |
+              terraform plan -out=tfplan
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Plan'
+          - script: |
+              terraform apply -auto-approve tfplan
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Apply'
+          - script: |
+              terraform output -json > ../ansible/terraform_outputs.json
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Export Terraform Outputs'
+  - stage: ansibleAction
+    dependsOn: terraformAction
+    jobs:
+      - job: ansible
+        steps:
+          - script: |
+              ansible-playbook -i ansible/inventory ansible/playbook.yml -vvv
+            workingDirectory: '$(System.DefaultWorkingDirectory)'
+            displayName: 'Run Ansible Playbook'
+  - stage: cleanup
+    dependsOn: [terraformAction, ansibleAction]
+    condition: always()
+    jobs:
+      - job: cleanup
+        steps:
+          - script: |
+              rm -f ~/.aws/credentials ~/.aws/config
+            displayName: 'Cleanup AWS Credentials'
