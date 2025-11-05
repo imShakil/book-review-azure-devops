@@ -19,18 +19,21 @@ stages:
               aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
               aws configure set region $(AWS_DEFAULT_REGION)
             displayName: 'Configure AWS CLI'
-          
-          - script: |
-              rm -rf ~/.ssh
-              mkdir -p ~/.ssh
-              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-              chmod 600 ~/.ssh/id_rsa
-              chmod 644 ~/.ssh/id_rsa.pub
-              echo "StrictHostKeyChecking no" > ~/.ssh/config
-              # Copy public key to terraform directory for EC2 key pair
-              cp ~/.ssh/id_rsa.pub terraform/
-            displayName: "Generate SSH Keys"
 
+          - task: DownloadSecureFile@1
+            name: download_ssh_key
+            inputs:
+              secureFile: 'id_rsa.pub'
+
+          - script: |
+              echo "Copying SSH public key into Terraform module"
+              rm -rf ~/.ssh/
+              mkdir -p ~/.ssh
+              cp $(download_ssh_key.secureFilePath) ~/.ssh/id_rsa.pub
+
+              echo "Listing contents of terraform/modules/compute/"
+              ls -al terraform/modules/compute/
+            displayName: 'Extract SSH Public Key for Terraform'
           - script: |
               cat > terraform.tfvars << EOF
               prefix             = "$(TF_PREFIX)"
@@ -77,6 +80,18 @@ stages:
               artifactName: 'ansible-config'
               downloadPath: '$(System.DefaultWorkingDirectory)'
             displayName: 'Download Ansible Configuration'
+          
+          - task: DownloadSecureFile@1
+            name: download_ssh_key
+            inputs:
+              secureFile: "id_rsa"
+
+          - script: |
+              mkdir -p ~/.ssh
+              cp $(download_ssh_key.secureFilePath) ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+              echo "StrictHostKeyChecking no" > ~/.ssh/config
+            displayName: "Setup SSH Private Key"
 
           - script: |
               ls -la
@@ -87,9 +102,11 @@ stages:
             workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Verify Ansible Files'
           - script: |
-              ansible-playbook -i inventory.ini bookreview.yaml -vvv
+              ansible-playbook -i inventory.ini site.yml --ssh-extra-args "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
             workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Run Ansible Playbook'
+            env:
+              ANSIBLE_HOST_KEY_CHECKING: "False"
 
 
   - stage: destroy
