@@ -52,10 +52,6 @@ stages:
               terraform apply -auto-approve tfplan
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Apply'
-          - script: |
-              terraform output -json > ../ansible/terraform_outputs.json
-            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-            displayName: 'Export Terraform Outputs'
           
           - task: PublishPipelineArtifact@1
             inputs:
@@ -82,8 +78,6 @@ stages:
               cat inventory.ini
               echo "=== Group vars ==="
               ls -la group_vars/
-              echo "=== Terraform outputs ==="
-              cat terraform_outputs.json
             workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Verify Ansible Files'
           - script: |
