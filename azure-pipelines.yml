@@ -72,13 +72,12 @@ stages:
     jobs:
       - job: ansible
         steps:
-          - task: DownloadBuildArtifacts@0
+          - task: DownloadPipelineArtifact@2
             inputs:
-              buildType: 'current'
               artifactName: 'ansible-config'
-              downloadPath: '$(System.DefaultWorkingDirectory)'
+              targetPath: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Download Ansible Configuration'
-          
+
           - task: DownloadSecureFile@1
             name: download_ssh_key
             inputs:
@@ -97,6 +96,7 @@ stages:
               cat inventory.ini
               echo "=== Group vars ==="
               ls -la group_vars/
+              cat group_vars/rds_info.yml
             workingDirectory: '$(System.DefaultWorkingDirectory)/ansible'
             displayName: 'Verify Ansible Files'
           - script: |
