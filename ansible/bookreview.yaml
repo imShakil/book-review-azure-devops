@@ -8,7 +8,7 @@
   hosts: backend
   become: true
   vars_files:
-    - backend.yml
+    - group_vars/backend.yml
     - group_vars/rds_info.yml
   roles:
     - backend
@@ -17,7 +17,7 @@
   hosts: frontend
   become: true
   vars_files:
-    - frontend.yml
+    - group_vars/frontend.yml
   roles:
     - frontend
 
@@ -25,6 +25,6 @@
   hosts: frontend
   become: true
   vars_files:
-    - frontend.yml
+    - group_vars/frontend.yml
   roles:
     - nginx
