@@ -52,7 +52,15 @@ stages:
               terraform apply -auto-approve tfplan
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Apply'
-          
+          - script: |
+              terraform output -json > terraform_output.json
+              cat terraform_output.json
+              ls -la
+              cat ansible/inventory.ini
+              ls -la ansible/group_vars/
+              cat ansible/group_vars/rds_info.yml
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Output'
           - task: PublishPipelineArtifact@1
             inputs:
               targetPath: '$(System.DefaultWorkingDirectory)/ansible'
