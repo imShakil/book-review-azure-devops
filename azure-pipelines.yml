@@ -115,20 +115,12 @@ stages:
         steps:
           - script: |
               terraform init
+            workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Terraform Destroy'
+          - script: |
               terraform destroy -auto-approve
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Destroy'
-  - stage: cleanup
-    dependsOn: [terraformAction, ansibleAction, destroy]
-    condition: and(always(), not(and(succeeded('terraformAction'), succeeded('ansibleAction'))))
-    jobs:
-      - job: cleanup
-        steps:
-          - script: |
-              rm -f ~/.aws/credentials ~/.aws/config
-              rm -rf ~/.ssh
-              rm -rf $(System.DefaultWorkingDirectory)/*
-            displayName: 'Cleanup Agent'
 
   - stage: manualDestroy
     dependsOn: [terraformAction, ansibleAction]
@@ -146,12 +138,22 @@ stages:
                     aws configure set region $(AWS_DEFAULT_REGION)
                   displayName: 'Configure AWS CLI'
                 - script: |
-                    terraform init
+                    terraform init 
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+                  displayName: 'Manual Init'
+                - script: |
                     terraform destroy -auto-approve
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-                  displayName: 'Manual Terraform Destroy'
-                - script: |
-                    rm -f ~/.aws/credentials ~/.aws/config
-                    rm -rf ~/.ssh/
-                    rm -rf $(System.DefaultWorkingDirectory)/*
-                  displayName: 'Cleanup Agent'
+                  displayName: 'Manual Destroy'
+
+  - stage: cleanup
+    dependsOn: [terraformAction, ansibleAction, destroy]
+    condition: and(always(), not(and(succeeded('terraformAction'), succeeded('ansibleAction'))))
+    jobs:
+      - job: cleanup
+        steps:
+          - script: |
+              rm -f ~/.aws/credentials ~/.aws/config
+              rm -rf ~/.ssh
+              rm -rf $(System.DefaultWorkingDirectory)/*
+            displayName: 'Cleanup Agent'
