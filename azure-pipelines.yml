@@ -119,7 +119,7 @@ stages:
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Destroy'
   - stage: cleanup
-    dependsOn: [terraformAction, ansibleAction]
+    dependsOn: [terraformAction, ansibleAction, destroy]
     condition: always()
     jobs:
       - job: cleanup
@@ -141,6 +141,7 @@ stages:
             deploy:
               steps:
                 - script: |
+                    terraform init
                     terraform destroy -auto-approve
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
                   displayName: 'Manual Terraform Destroy'
