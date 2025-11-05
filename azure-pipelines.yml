@@ -159,7 +159,9 @@ stages:
                   displayName: 'Download Terraform vars'
 
                 - script: |
+                    ls -la
                     terraform init -upgrade
+                    chmod -R +x .terraform/providers
                     terraform destroy -auto-approve
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
                   displayName: 'Manual Destroy'
