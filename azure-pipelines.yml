@@ -65,6 +65,11 @@ stages:
               targetPath: '$(System.DefaultWorkingDirectory)/ansible'
               artifact: 'ansible-config'
             displayName: 'Publish Ansible Configuration'
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)/terraform'
+              artifact: 'terrafrom.tfvars'
+            displayName: 'Publish Terraform vars'
 
   - stage: ansibleAction
     dependsOn: terraformAction
@@ -114,6 +119,18 @@ stages:
       - job: destroy
         steps:
           - script: |
+              aws configure set aws_access_key_id $(AWS_ACCESS_KEY_ID)
+              aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
+              aws configure set region $(AWS_DEFAULT_REGION)
+            displayName: 'Configure AWS CLI'
+
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'terrafrom.tfvars'
+              targetPath: '$(System.DefaultWorkingDirectory)/terraform'
+            displayName: 'Download Terraform vars'
+
+          - script: |
               terraform init
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
             displayName: 'Terraform Destroy'
@@ -137,6 +154,13 @@ stages:
                     aws configure set aws_secret_access_key $(AWS_SECRET_ACCESS_KEY)
                     aws configure set region $(AWS_DEFAULT_REGION)
                   displayName: 'Configure AWS CLI'
+                
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifactName: 'terrafrom.tfvars'
+                    targetPath: '$(System.DefaultWorkingDirectory)/terraform'
+                  displayName: 'Download Terraform vars'
+
                 - script: |
                     terraform init 
                   workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
